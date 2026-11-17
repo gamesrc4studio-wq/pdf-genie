@@ -1,0 +1,163 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Private user account profile and study activity counters.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Authentication user UID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User display name.",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "User email address.",
+          "minLength": 3,
+          "maxLength": 200
+        },
+        "totalDocsAnalyzed": {
+          "type": "integer",
+          "description": "Total number of PDF documents analyzed by this user."
+        },
+        "totalQuizzesCompleted": {
+          "type": "integer",
+          "description": "Total number of AI quizzes completed by this user."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when profile was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when profile was last updated."
+        }
+      },
+      "required": [
+        "uid",
+        "displayName",
+        "email",
+        "totalDocsAnalyzed",
+        "totalQuizzesCompleted",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "UserActivity": {
+      "title": "UserActivity",
+      "description": "Saved PDF analysis session including summary, key points, terms, chat Q&A history, and quiz results.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Owner Firebase Auth UID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "fileName": {
+          "type": "string",
+          "description": "Uploaded PDF filename.",
+          "minLength": 1,
+          "maxLength": 255
+        },
+        "pageCount": {
+          "type": "integer",
+          "description": "Total PDF pages."
+        },
+        "wordCount": {
+          "type": "integer",
+          "description": "Total extracted words."
+        },
+        "chunks": {
+          "type": "array",
+          "description": "Bounded extracted PDF text chunks for restoring Q&A and quizzes."
+        },
+        "summary": {
+          "type": "string",
+          "description": "AI executive summary.",
+          "minLength": 1,
+          "maxLength": 12000
+        },
+        "simpleExplanation": {
+          "type": "string",
+          "description": "Plain-English explanation.",
+          "minLength": 1,
+          "maxLength": 5000
+        },
+        "keyPoints": {
+          "type": "array",
+          "description": "Extracted important bullet points (max 10)."
+        },
+        "terms": {
+          "type": "array",
+          "description": "Important terms and definitions (max 10)."
+        },
+        "chatHistory": {
+          "type": "array",
+          "description": "Saved Ask Your PDF chat turns (max 40)."
+        },
+        "quizQuestions": {
+          "type": "array",
+          "description": "Generated 5 multiple-choice questions."
+        },
+        "lastQuizScore": {
+          "type": "integer",
+          "description": "Most recent quiz score (-1 if not submitted yet)."
+        },
+        "lastQuizTotal": {
+          "type": "integer",
+          "description": "Total questions in the most recent quiz attempt."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when activity was saved."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when activity was last updated."
+        }
+      },
+      "required": [
+        "userId",
+        "fileName",
+        "pageCount",
+        "wordCount",
+        "chunks",
+        "summary",
+        "simpleExplanation",
+        "keyPoints",
+        "terms",
+        "chatHistory",
+        "quizQuestions",
+        "lastQuizScore",
+        "lastQuizTotal",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Private profile document per authenticated user."
+    },
+    "/users/{userId}/activities/{activityId}": {
+      "schema": { "$ref": "#/entities/UserActivity" },
+      "description": "Saved PDF summaries, chat transcripts, terms, and quiz history owned by the user."
+    }
+  }
+}

@@ -1,25 +1,37 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { CheckCircle2, XCircle, RotateCcw, Sparkles, Loader2, AlertCircle } from "lucide-react";
 import type { QuizQuestion } from "../types/pdf";
 
 interface QuizViewProps {
   questions: QuizQuestion[] | null;
+  lastScore?: number;
+  lastTotal?: number;
   isLoading: boolean;
   error: string | null;
   onGenerateQuiz: () => void;
+  onQuizSubmitted?: (score: number, total: number) => void;
 }
 
 const OPTION_LETTERS = ["A", "B", "C", "D"];
 
 export const QuizView: React.FC<QuizViewProps> = ({
   questions,
+  lastScore = -1,
+  lastTotal = 0,
   isLoading,
   error,
   onGenerateQuiz,
+  onQuizSubmitted,
 }) => {
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [imgError, setImgError] = useState(false);
+
+  // Reset local selection state when a new set of questions arrives
+  useEffect(() => {
+    setSelectedAnswers({});
+    setIsSubmitted(false);
+  }, [questions]);
 
   const handleSelectOption = (questionIndex: number, optionIndex: number) => {
     if (isSubmitted) return;
@@ -27,7 +39,14 @@ export const QuizView: React.FC<QuizViewProps> = ({
   };
 
   const handleSubmitQuiz = () => {
+    if (!questions) return;
+    const total = questions.length;
+    const correct = questions.reduce(
+      (sum, q, idx) => sum + (selectedAnswers[idx] === q.correctIndex ? 1 : 0),
+      0
+    );
     setIsSubmitted(true);
+    onQuizSubmitted?.(correct, total);
   };
 
   const handleRetake = () => {
@@ -77,8 +96,11 @@ export const QuizView: React.FC<QuizViewProps> = ({
             <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#17213B]">
               AI Comprehension Quiz
             </h2>
-            <p className="text-sm text-[#17213B]/85 mt-1">
-              5 multiple-choice questions generated straight from your PDF.
+            <p className="text-sm text-[#17213B]/85 mt-1 tabular-nums">
+              5 multiple-choice questions generated straight from your PDF
+              {lastScore >= 0 && lastTotal > 0
+                ? ` · Previous best: ${lastScore} / ${lastTotal}`
+                : "."}
             </p>
           </div>
         </div>

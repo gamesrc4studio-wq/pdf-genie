@@ -1,0 +1,228 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Pillar 1: Global default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Pillar 3: Reusable hardened primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Pillar 2: UserProfile Validation Blueprint
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll([
+        'uid',
+        'displayName',
+        'email',
+        'totalDocsAnalyzed',
+        'totalQuizzesCompleted',
+        'createdAt',
+        'updatedAt'
+      ])
+      && data.keys().hasOnly([
+        'uid',
+        'displayName',
+        'email',
+        'totalDocsAnalyzed',
+        'totalQuizzesCompleted',
+        'createdAt',
+        'updatedAt'
+      ])
+      && data.uid is string
+      && data.uid == request.auth.uid
+      && data.uid == userId
+      && isValidId(data.uid)
+      && data.displayName is string
+      && data.displayName.size() >= 1
+      && data.displayName.size() <= 100
+      && data.email is string
+      && data.email.size() >= 3
+      && data.email.size() <= 200
+      && data.totalDocsAnalyzed is int
+      && data.totalDocsAnalyzed >= 0
+      && data.totalDocsAnalyzed <= 100000
+      && data.totalQuizzesCompleted is int
+      && data.totalQuizzesCompleted >= 0
+      && data.totalQuizzesCompleted <= 100000
+      && data.createdAt is timestamp
+      && data.updatedAt is timestamp;
+    }
+
+    // Pillar 2 & 5: UserActivity Validation Blueprint
+    function isValidUserActivity(data, userId) {
+      return data.keys().hasAll([
+        'userId',
+        'fileName',
+        'pageCount',
+        'wordCount',
+        'chunks',
+        'summary',
+        'simpleExplanation',
+        'keyPoints',
+        'terms',
+        'chatHistory',
+        'quizQuestions',
+        'lastQuizScore',
+        'lastQuizTotal',
+        'createdAt',
+        'updatedAt'
+      ])
+      && data.keys().hasOnly([
+        'userId',
+        'fileName',
+        'pageCount',
+        'wordCount',
+        'chunks',
+        'summary',
+        'simpleExplanation',
+        'keyPoints',
+        'terms',
+        'chatHistory',
+        'quizQuestions',
+        'lastQuizScore',
+        'lastQuizTotal',
+        'createdAt',
+        'updatedAt'
+      ])
+      && data.userId is string
+      && data.userId == request.auth.uid
+      && data.userId == userId
+      && isValidId(data.userId)
+      && data.fileName is string
+      && data.fileName.size() >= 1
+      && data.fileName.size() <= 255
+      && data.pageCount is int
+      && data.pageCount >= 1
+      && data.pageCount <= 5000
+      && data.wordCount is int
+      && data.wordCount >= 1
+      && data.wordCount <= 5000000
+      && data.chunks is list
+      && data.chunks.size() >= 1
+      && data.chunks.size() <= 15
+      && data.chunks[0] is string
+      && data.chunks[0].size() <= 8000
+      && data.summary is string
+      && data.summary.size() >= 1
+      && data.summary.size() <= 12000
+      && data.simpleExplanation is string
+      && data.simpleExplanation.size() >= 1
+      && data.simpleExplanation.size() <= 5000
+      && data.keyPoints is list
+      && data.keyPoints.size() <= 10
+      && (data.keyPoints.size() == 0 || data.keyPoints[0] is string)
+      && data.terms is list
+      && data.terms.size() <= 10
+      && (data.terms.size() == 0 || data.terms[0] is map)
+      && data.chatHistory is list
+      && data.chatHistory.size() <= 40
+      && (data.chatHistory.size() == 0 || data.chatHistory[0] is map)
+      && data.quizQuestions is list
+      && data.quizQuestions.size() <= 5
+      && (data.quizQuestions.size() == 0 || data.quizQuestions[0] is map)
+      && data.lastQuizScore is int
+      && data.lastQuizScore >= -1
+      && data.lastQuizScore <= 5
+      && data.lastQuizTotal is int
+      && data.lastQuizTotal >= 0
+      && data.lastQuizTotal <= 5
+      && data.createdAt is timestamp
+      && data.updatedAt is timestamp;
+    }
+
+    // Pillar 6: PII Isolation — Users collection strictly isolated to owner
+    match /users/{userId} {
+      allow get: if isValidId(userId) && isOwner(userId) && isVerifiedUser();
+      allow list: if false;
+
+      allow create: if isValidId(userId)
+        && isOwner(userId)
+        && isVerifiedUser()
+        && isValidUserProfile(incoming(), userId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isValidId(userId)
+        && isOwner(userId)
+        && isVerifiedUser()
+        && isValidUserProfile(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'updatedAt'])
+          || incoming().diff(existing()).affectedKeys().hasOnly(['totalDocsAnalyzed', 'updatedAt'])
+          || incoming().diff(existing()).affectedKeys().hasOnly(['totalQuizzesCompleted', 'updatedAt'])
+          || incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'email', 'updatedAt'])
+        );
+
+      allow delete: if false;
+
+      // Pillar 1 & 8: Activities subcollection gated by parent user profile & owner check
+      match /activities/{activityId} {
+        allow get: if isValidId(userId)
+          && isValidId(activityId)
+          && isOwner(userId)
+          && isVerifiedUser();
+
+        allow list: if isOwner(userId)
+          && isVerifiedUser()
+          && existing().userId == request.auth.uid;
+
+        allow create: if isValidId(userId)
+          && isValidId(activityId)
+          && isOwner(userId)
+          && isVerifiedUser()
+          && isValidUserActivity(incoming(), userId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && exists(/databases/$(database)/documents/users/$(userId))
+          && get(/databases/$(database)/documents/users/$(userId)).data.uid == request.auth.uid;
+
+        allow update: if isValidId(userId)
+          && isValidId(activityId)
+          && isOwner(userId)
+          && isVerifiedUser()
+          && isValidUserActivity(incoming(), userId)
+          && incoming().userId == existing().userId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && (
+            incoming().diff(existing()).affectedKeys().hasOnly(['chatHistory', 'updatedAt'])
+            || incoming().diff(existing()).affectedKeys().hasOnly(['quizQuestions', 'lastQuizScore', 'lastQuizTotal', 'updatedAt'])
+            || incoming().diff(existing()).affectedKeys().hasOnly(['lastQuizScore', 'lastQuizTotal', 'updatedAt'])
+            || incoming().diff(existing()).affectedKeys().hasOnly(['chatHistory', 'quizQuestions', 'lastQuizScore', 'lastQuizTotal', 'updatedAt'])
+          );
+
+        allow delete: if isValidId(userId)
+          && isValidId(activityId)
+          && isOwner(userId)
+          && isVerifiedUser()
+          && existing().userId == request.auth.uid;
+      }
+    }
+  }
+}
