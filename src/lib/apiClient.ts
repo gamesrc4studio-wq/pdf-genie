@@ -1,6 +1,16 @@
 import type { ChatMessage, DocumentAnalysis, QuizQuestion, TermItem } from "../types/pdf";
 
 async function parseJsonResponse<T>(response: Response): Promise<T> {
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    if (response.status === 404 || response.status === 405) {
+      throw new Error(
+        "AI backend server not found on this host. GitHub Pages only serves static files—run the Node.js server locally (npm install && npm run dev with GEMINI_API_KEY in .env) or deploy to a Node host like Cloud Run or Render."
+      );
+    }
+    throw new Error(`Unexpected response from server (${response.status}). Make sure the Node.js server is running.`);
+  }
+
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     const err = new Error(

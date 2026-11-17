@@ -8,7 +8,6 @@ import {
   HelpCircle,
   BookMarked,
   X,
-  History,
   CheckCircle2,
   MailCheck,
   LogIn,
@@ -24,6 +23,7 @@ import {
   updateActivityQuiz,
 } from "./lib/activityStore";
 import { Navbar } from "./components/Navbar";
+import { ActivitySidebar, MobileActivityDrawer } from "./components/ActivitySidebar";
 import { HeroUpload } from "./components/HeroUpload";
 import { LandingShowcase } from "./components/LandingShowcase";
 import { SummaryView } from "./components/SummaryView";
@@ -54,6 +54,9 @@ export default function App() {
   const [activities, setActivities] = useState<SavedActivity[]>([]);
   const [cloudNotice, setCloudNotice] = useState<string | null>(null);
 
+  const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState(true);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
   const [currentView, setCurrentView] = useState<AppView>("studio");
   const [doc, setDoc] = useState<DocumentAnalysis | null>(null);
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("summary");
@@ -71,7 +74,6 @@ export default function App() {
   docRef.current = doc;
   const savingPendingRef = useRef(false);
 
-  // Listen for Firebase Auth state
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
@@ -84,7 +86,6 @@ export default function App() {
     return unsub;
   }, []);
 
-  // Subscribe to profile & past activities once authenticated and verified
   useEffect(() => {
     if (!authReady || !user || !user.emailVerified) {
       return;
@@ -110,19 +111,16 @@ export default function App() {
           (err) => setError(err.message)
         );
 
-        // If the user analyzed a PDF right before signing in, save it automatically now
         const currentDoc = docRef.current;
         if (currentDoc && !currentDoc.activityId && !savingPendingRef.current) {
           savingPendingRef.current = true;
           saveNewActivity(user, currentDoc)
             .then((activityId) => {
               setDoc((prev) => (prev ? { ...prev, activityId } : prev));
-              setCloudNotice("Saved your current PDF analysis to Past Activity.");
+              setCloudNotice("Saved your current PDF analysis to Past Chats.");
               setTimeout(() => setCloudNotice(null), 3500);
             })
-            .catch(() => {
-              // ignore silent auto-save failure
-            })
+            .catch(() => {})
             .finally(() => {
               savingPendingRef.current = false;
             });
@@ -180,12 +178,11 @@ export default function App() {
 
         const analysis = await analyzePdfChunks(extracted);
 
-        // Save automatically to Firestore if user is signed in & verified
         let activityId: string | undefined;
         if (user && user.emailVerified) {
           try {
             activityId = await saveNewActivity(user, analysis);
-            setCloudNotice("Saved to Past Activity");
+            setCloudNotice("Saved to Past Chats");
             setTimeout(() => setCloudNotice(null), 3000);
           } catch {
             // Keep working locally even if cloud save fails
@@ -218,7 +215,8 @@ export default function App() {
     setError(null);
     setCurrentView("studio");
     try {
-      const res = await fetch("/sample-ai-guide.pdf");
+      const sampleUrl = `${import.meta.env.BASE_URL}sample-ai-guide.pdf`;
+      const res = await fetch(sampleUrl);
       if (!res.ok) {
         throw new Error("Could not load the sample PDF file.");
       }
@@ -232,7 +230,6 @@ export default function App() {
     }
   }, [processPdfFile]);
 
-  // Persist chat changes to Firestore whenever chatMessages updates for a saved activity
   const handleChatMessagesChange: React.Dispatch<React.SetStateAction<ChatMessage[]>> =
     useCallback(
       (action) => {
@@ -240,9 +237,7 @@ export default function App() {
           const next = typeof action === "function" ? action(prev) : action;
           const activeDoc = docRef.current;
           if (user && user.emailVerified && activeDoc?.activityId) {
-            updateActivityChat(user.uid, activeDoc.activityId, next).catch(() => {
-              // ignore background sync failures
-            });
+            updateActivityChat(user.uid, activeDoc.activityId, next).catch(() => {});
           }
           return next;
         });
@@ -320,36 +315,43 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
-  const handleOpenSavedActivity = useCallback((saved: SavedActivity) => {
-    setDoc({
-      sessionId: `restored-${saved.id}`,
-      activityId: saved.id,
-      fileName: saved.fileName,
-      pageCount: saved.pageCount,
-      wordCount: saved.wordCount,
-      chunks: saved.chunks,
-      summary: saved.summary,
-      simpleExplanation: saved.simpleExplanation,
-      keyPoints: saved.keyPoints,
-      terms: saved.terms,
-    });
-    setChatMessages(saved.chatHistory || []);
-    setQuizQuestions(
-      saved.quizQuestions && saved.quizQuestions.length > 0 ? saved.quizQuestions : null
-    );
-    setLastQuizScore(saved.lastQuizScore ?? -1);
-    setLastQuizTotal(saved.lastQuizTotal ?? 0);
-    setQuizError(null);
-    setError(null);
-    setActiveTab("summary");
-    setCurrentView("studio");
+  const handleOpenSavedActivity = useCallback(
+    (saved: SavedActivity, preferChatTab = false) => {
+      setDoc({
+        sessionId: `restored-${saved.id}`,
+        activityId: saved.id,
+        fileName: saved.fileName,
+        pageCount: saved.pageCount,
+        wordCount: saved.wordCount,
+        chunks: saved.chunks,
+        summary: saved.summary,
+        simpleExplanation: saved.simpleExplanation,
+        keyPoints: saved.keyPoints,
+        terms: saved.terms,
+      });
+      setChatMessages(saved.chatHistory || []);
+      setQuizQuestions(
+        saved.quizQuestions && saved.quizQuestions.length > 0 ? saved.quizQuestions : null
+      );
+      setLastQuizScore(saved.lastQuizScore ?? -1);
+      setLastQuizTotal(saved.lastQuizTotal ?? 0);
+      setQuizError(null);
+      setError(null);
+      setActiveTab(
+        preferChatTab && saved.chatHistory && saved.chatHistory.length > 0
+          ? "chat"
+          : "summary"
+      );
+      setCurrentView("studio");
 
-    setTimeout(() => {
-      document
-        .getElementById("workspace-section")
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 100);
-  }, []);
+      setTimeout(() => {
+        document
+          .getElementById("workspace-section")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    },
+    []
+  );
 
   const handleDeleteSavedActivity = useCallback(
     async (activityId: string) => {
@@ -396,253 +398,259 @@ export default function App() {
     userProfile?.displayName || user?.displayName || user?.email?.split("@")[0] || "Student";
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FFF1D8] text-[#17213B]">
-      <Navbar
-        currentView={currentView}
-        hasDocument={doc !== null}
+    <div className="min-h-screen flex bg-[#FFF1D8] text-[#17213B]">
+      {/* ChatGPT / Gemini style persistent collapsible left sidebar */}
+      <ActivitySidebar
+        isOpen={isDesktopSidebarOpen}
+        onCloseMobile={() => setIsMobileSidebarOpen(false)}
+        onToggleCollapse={() => setIsDesktopSidebarOpen((prev) => !prev)}
         isSignedIn={isSignedIn}
-        activityCount={activities.length}
-        onNavigateView={setCurrentView}
-        onSelectTab={handleSelectTab}
+        userDisplayName={userDisplayName}
+        userEmail={user?.email || ""}
+        activities={activities}
+        activeDoc={doc}
+        onNewChat={handleResetDocument}
+        onSelectActivity={(item) => handleOpenSavedActivity(item, true)}
+        onDeleteActivity={handleDeleteSavedActivity}
+        onOpenAllActivity={() => setCurrentView("activity")}
+        onOpenAuth={() => setCurrentView("auth")}
         onSignOut={handleSignOut}
       />
 
-      {/* Email Verification Prompt Banner (for unverified email/password signups) */}
-      {isSignedIn && user && !user.emailVerified && (
-        <div className="bg-[#FFE0C5] border-b-2 border-[#17213B]">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-3 text-sm">
-            <div className="flex items-center gap-2.5 font-medium text-[#17213B]">
-              <MailCheck className="w-4 h-4 text-[#2855D9] shrink-0" />
-              <span>
-                Please verify <span className="font-bold">{user.email}</span> to save your activity to the cloud.
-              </span>
-            </div>
-            <div className="flex items-center gap-2.5">
-              <button
-                type="button"
-                onClick={handleResendVerification}
-                className="px-3 py-1 rounded-lg bg-[#FFFFFF] border-2 border-[#17213B] text-xs font-bold cursor-pointer"
-              >
-                Resend Email
-              </button>
-              <button
-                type="button"
-                onClick={handleRefreshVerification}
-                className="px-3 py-1 rounded-lg bg-[#2855D9] text-white border-2 border-[#17213B] text-xs font-bold cursor-pointer"
-              >
-                I Verified
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Mobile Slide-over Past Chats Drawer */}
+      <MobileActivityDrawer
+        isOpen={isMobileSidebarOpen}
+        onCloseMobile={() => setIsMobileSidebarOpen(false)}
+        onToggleCollapse={() => setIsDesktopSidebarOpen((prev) => !prev)}
+        isSignedIn={isSignedIn}
+        userDisplayName={userDisplayName}
+        userEmail={user?.email || ""}
+        activities={activities}
+        activeDoc={doc}
+        onNewChat={handleResetDocument}
+        onSelectActivity={(item) => handleOpenSavedActivity(item, true)}
+        onDeleteActivity={handleDeleteSavedActivity}
+        onOpenAllActivity={() => setCurrentView("activity")}
+        onOpenAuth={() => setCurrentView("auth")}
+        onSignOut={handleSignOut}
+      />
 
-      {/* Subtle Cloud Sync Toast */}
-      {cloudNotice && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 w-full">
-          <div className="rounded-xl bg-[#FFFFFF] border-2 border-[#17213B] px-4 py-2.5 text-sm font-semibold text-[#17213B] inline-flex items-center gap-2 shadow-[3px_3px_0px_#17213B]">
-            <CheckCircle2 className="w-4 h-4 text-[#2855D9]" />
-            <span>{cloudNotice}</span>
-          </div>
-        </div>
-      )}
+      {/* Main Content Shell */}
+      <div className="flex-1 min-w-0 flex flex-col min-h-screen">
+        <Navbar
+          currentView={currentView}
+          hasDocument={doc !== null}
+          isSignedIn={isSignedIn}
+          isDesktopSidebarOpen={isDesktopSidebarOpen}
+          activityCount={activities.length}
+          onToggleDesktopSidebar={() => setIsDesktopSidebarOpen((prev) => !prev)}
+          onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
+          onNavigateView={setCurrentView}
+          onSelectTab={handleSelectTab}
+          onSignOut={handleSignOut}
+        />
 
-      <main className="flex-1">
-        {currentView === "auth" ? (
-          <AuthView
-            onSuccess={() => setCurrentView("studio")}
-            onBack={() => setCurrentView("studio")}
-          />
-        ) : currentView === "activity" && isSignedIn ? (
-          <ActivityHistoryView
-            userDisplayName={userDisplayName}
-            userEmail={user?.email || ""}
-            profile={userProfile}
-            activities={activities}
-            onOpenActivity={handleOpenSavedActivity}
-            onDeleteActivity={handleDeleteSavedActivity}
-            onGoToUpload={() => {
-              setCurrentView("studio");
-              window.scrollTo({ top: 0, behavior: "smooth" });
-            }}
-            onLoadSample={handleLoadSample}
-          />
-        ) : (
-          <>
-            {/* Compact Account / Past Activity Quick Strip */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5">
-              {isSignedIn ? (
-                <div className="flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm font-medium text-[#17213B]/85">
-                  <span>
-                    Signed in as <strong className="text-[#17213B]">{userDisplayName}</strong> ·{" "}
-                    <span className="tabular-nums">
-                      {activities.length} saved {activities.length === 1 ? "PDF" : "PDFs"}
-                    </span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setCurrentView("activity")}
-                    className="inline-flex items-center gap-1.5 font-bold text-[#2855D9] hover:underline cursor-pointer"
-                  >
-                    <History className="w-4 h-4" />
-                    View Past Activity
-                  </button>
-                </div>
-              ) : (
-                <div className="flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm font-medium text-[#17213B]/80">
-                  <span>
-                    Sign in to automatically save your summaries, Ask Your PDF chats, and quiz scores.
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setCurrentView("auth")}
-                    className="inline-flex items-center gap-1.5 font-bold text-[#2855D9] hover:underline cursor-pointer"
-                  >
-                    <LogIn className="w-4 h-4" />
-                    Log In or Sign Up
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <HeroUpload
-              onFileSelected={processPdfFile}
-              onLoadSample={handleLoadSample}
-              progress={progress}
-              error={error}
-              onClearError={() => setError(null)}
-              activeFileName={doc?.fileName}
-            />
-
-            {!doc ? (
-              <LandingShowcase
-                onLoadSample={handleLoadSample}
-                isBusy={progress !== null}
-              />
-            ) : (
-              <section
-                id="workspace-section"
-                className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 pt-2 space-y-6"
-              >
-                {/* Active Document Metadata Bar + Clear Action */}
-                <div className="editorial-card bg-[#FFFFFF] rounded-2xl px-5 py-4 flex flex-wrap items-center justify-between gap-4">
-                  <div className="flex items-center gap-3.5 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-[#F47A35] border-2 border-[#17213B] flex items-center justify-center shrink-0">
-                      <FileText className="w-5 h-5 text-[#17213B]" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-display font-bold text-base sm:text-lg text-[#17213B] truncate">
-                        {doc.fileName}
-                      </p>
-                      <p className="text-xs sm:text-sm font-medium text-[#17213B]/75 tabular-nums">
-                        {doc.pageCount} {doc.pageCount === 1 ? "page" : "pages"} ·{" "}
-                        {doc.wordCount.toLocaleString()} words · {doc.chunks.length}{" "}
-                        {doc.chunks.length === 1 ? "chunk" : "chunks"} processed
-                        {doc.activityId ? " · Saved to Past Activity" : ""}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    {!isSignedIn && (
-                      <button
-                        type="button"
-                        onClick={() => setCurrentView("auth")}
-                        className="editorial-btn bg-[#FFE0C5] text-[#17213B] px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
-                      >
-                        <LogIn className="w-4 h-4" />
-                        Save to Account
-                      </button>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={handleResetDocument}
-                      className="editorial-btn bg-[#FFF1D8] text-[#17213B] px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
-                    >
-                      <X className="w-4 h-4" />
-                      Clear Document
-                    </button>
-                  </div>
-                </div>
-
-                {/* Interactive Workspace Tab Switcher */}
-                <div
-                  role="tablist"
-                  aria-label="PDF study workspace views"
-                  className="flex flex-wrap items-center gap-2.5"
+        {/* Email Verification Banner */}
+        {isSignedIn && user && !user.emailVerified && (
+          <div className="bg-[#FFE0C5] border-b-2 border-[#17213B]">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-3 text-sm">
+              <div className="flex items-center gap-2.5 font-medium text-[#17213B]">
+                <MailCheck className="w-4 h-4 text-[#2855D9] shrink-0" />
+                <span>
+                  Please verify <span className="font-bold">{user.email}</span> to save your activity to the cloud.
+                </span>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={handleResendVerification}
+                  className="px-3 py-1 rounded-lg bg-[#FFFFFF] border-2 border-[#17213B] text-xs font-bold cursor-pointer"
                 >
-                  {TABS.map((tab) => {
-                    const Icon = tab.icon;
-                    const isActive = activeTab === tab.id;
-                    return (
-                      <button
-                        key={tab.id}
-                        type="button"
-                        role="tab"
-                        aria-selected={isActive}
-                        onClick={() => handleSelectTab(tab.id)}
-                        className={`editorial-btn px-4 sm:px-5 py-2.5 rounded-xl text-sm font-bold inline-flex items-center gap-2 whitespace-nowrap shrink-0 cursor-pointer ${
-                          isActive
-                            ? "bg-[#2855D9] text-white"
-                            : "bg-[#FFFFFF] text-[#17213B] hover:bg-[#FFE0C5]"
-                        }`}
-                      >
-                        <Icon className="w-4 h-4" />
-                        <span>{tab.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Active Workspace Content */}
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={activeTab}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                  >
-                    {activeTab === "summary" && <SummaryView doc={doc} />}
-                    {activeTab === "chat" && (
-                      <ChatView
-                        doc={doc}
-                        messages={chatMessages}
-                        onMessagesChange={handleChatMessagesChange}
-                      />
-                    )}
-                    {activeTab === "quiz" && (
-                      <QuizView
-                        questions={quizQuestions}
-                        lastScore={lastQuizScore}
-                        lastTotal={lastQuizTotal}
-                        isLoading={isQuizLoading}
-                        error={quizError}
-                        onGenerateQuiz={() => handleGenerateQuiz()}
-                        onQuizSubmitted={handleQuizSubmitted}
-                      />
-                    )}
-                    {activeTab === "terms" && <TermsView terms={doc.terms} />}
-                  </motion.div>
-                </AnimatePresence>
-              </section>
-            )}
-          </>
-        )}
-      </main>
-
-      <footer className="bg-[#17213B] text-[#FFF1D8] border-t-2 border-[#17213B]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="inline-flex items-center gap-2.5 font-display font-bold text-lg">
-            <FourPointStar className="w-5 h-5" fill="#F47A35" stroke="#FFF1D8" />
-            <span>PDF GENIUS</span>
+                  Resend Email
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRefreshVerification}
+                  className="px-3 py-1 rounded-lg bg-[#2855D9] text-white border-2 border-[#17213B] text-xs font-bold cursor-pointer"
+                >
+                  I Verified
+                </button>
+              </div>
+            </div>
           </div>
-          <p className="text-xs sm:text-sm text-[#FFF1D8]/75 text-center sm:text-right">
-            Built with PDF.js, Gemini AI &amp; Firebase · Client-side PDF parsing, persistent study history
-          </p>
-        </div>
-      </footer>
+        )}
+
+        {/* Cloud Sync Toast */}
+        {cloudNotice && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 w-full">
+            <div className="rounded-xl bg-[#FFFFFF] border-2 border-[#17213B] px-4 py-2.5 text-sm font-semibold text-[#17213B] inline-flex items-center gap-2 shadow-[3px_3px_0px_#17213B]">
+              <CheckCircle2 className="w-4 h-4 text-[#2855D9]" />
+              <span>{cloudNotice}</span>
+            </div>
+          </div>
+        )}
+
+        <main className="flex-1">
+          {currentView === "auth" ? (
+            <AuthView
+              onSuccess={() => setCurrentView("studio")}
+              onBack={() => setCurrentView("studio")}
+            />
+          ) : currentView === "activity" && isSignedIn ? (
+            <ActivityHistoryView
+              userDisplayName={userDisplayName}
+              userEmail={user?.email || ""}
+              profile={userProfile}
+              activities={activities}
+              onOpenActivity={(item) => handleOpenSavedActivity(item, false)}
+              onDeleteActivity={handleDeleteSavedActivity}
+              onGoToUpload={() => {
+                setCurrentView("studio");
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+              onLoadSample={handleLoadSample}
+            />
+          ) : (
+            <>
+              <HeroUpload
+                onFileSelected={processPdfFile}
+                onLoadSample={handleLoadSample}
+                progress={progress}
+                error={error}
+                onClearError={() => setError(null)}
+                activeFileName={doc?.fileName}
+              />
+
+              {!doc ? (
+                <LandingShowcase
+                  onLoadSample={handleLoadSample}
+                  isBusy={progress !== null}
+                />
+              ) : (
+                <section
+                  id="workspace-section"
+                  className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 pt-2 space-y-6"
+                >
+                  {/* Active Document Metadata Bar + Actions */}
+                  <div className="editorial-card bg-[#FFFFFF] rounded-2xl px-5 py-4 flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div className="w-10 h-10 rounded-xl bg-[#F47A35] border-2 border-[#17213B] flex items-center justify-center shrink-0">
+                        <FileText className="w-5 h-5 text-[#17213B]" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-display font-bold text-base sm:text-lg text-[#17213B] truncate">
+                          {doc.fileName}
+                        </p>
+                        <p className="text-xs sm:text-sm font-medium text-[#17213B]/75 tabular-nums">
+                          {doc.pageCount} {doc.pageCount === 1 ? "page" : "pages"} ·{" "}
+                          {doc.wordCount.toLocaleString()} words · {doc.chunks.length}{" "}
+                          {doc.chunks.length === 1 ? "chunk" : "chunks"} processed
+                          {doc.activityId ? " · Saved in Past Chats" : ""}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      {!isSignedIn && (
+                        <button
+                          type="button"
+                          onClick={() => setCurrentView("auth")}
+                          className="editorial-btn bg-[#FFE0C5] text-[#17213B] px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+                        >
+                          <LogIn className="w-4 h-4" />
+                          Save to Account
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={handleResetDocument}
+                        className="editorial-btn bg-[#FFF1D8] text-[#17213B] px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+                      >
+                        <X className="w-4 h-4" />
+                        Clear Document
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Interactive Workspace Tab Switcher */}
+                  <div
+                    role="tablist"
+                    aria-label="PDF study workspace views"
+                    className="flex flex-wrap items-center gap-2.5"
+                  >
+                    {TABS.map((tab) => {
+                      const Icon = tab.icon;
+                      const isActive = activeTab === tab.id;
+                      return (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          role="tab"
+                          aria-selected={isActive}
+                          onClick={() => handleSelectTab(tab.id)}
+                          className={`editorial-btn px-4 sm:px-5 py-2.5 rounded-xl text-sm font-bold inline-flex items-center gap-2 whitespace-nowrap shrink-0 cursor-pointer ${
+                            isActive
+                              ? "bg-[#2855D9] text-white"
+                              : "bg-[#FFFFFF] text-[#17213B] hover:bg-[#FFE0C5]"
+                          }`}
+                        >
+                          <Icon className="w-4 h-4" />
+                          <span>{tab.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Active Workspace Content */}
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={activeTab}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                    >
+                      {activeTab === "summary" && <SummaryView doc={doc} />}
+                      {activeTab === "chat" && (
+                        <ChatView
+                          doc={doc}
+                          messages={chatMessages}
+                          onMessagesChange={handleChatMessagesChange}
+                        />
+                      )}
+                      {activeTab === "quiz" && (
+                        <QuizView
+                          questions={quizQuestions}
+                          lastScore={lastQuizScore}
+                          lastTotal={lastQuizTotal}
+                          isLoading={isQuizLoading}
+                          error={quizError}
+                          onGenerateQuiz={() => handleGenerateQuiz()}
+                          onQuizSubmitted={handleQuizSubmitted}
+                        />
+                      )}
+                      {activeTab === "terms" && <TermsView terms={doc.terms} />}
+                    </motion.div>
+                  </AnimatePresence>
+                </section>
+              )}
+            </>
+          )}
+        </main>
+
+        <footer className="bg-[#17213B] text-[#FFF1D8] border-t-2 border-[#17213B]">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="inline-flex items-center gap-2.5 font-display font-bold text-lg">
+              <FourPointStar className="w-5 h-5" fill="#F47A35" stroke="#FFF1D8" />
+              <span>PDF GENIUS</span>
+            </div>
+            <p className="text-xs sm:text-sm text-[#FFF1D8]/75 text-center sm:text-right">
+              Built with PDF.js, Gemini AI &amp; Firebase · Client-side PDF parsing, persistent study history
+            </p>
+          </div>
+        </footer>
+      </div>
     </div>
   );
 }

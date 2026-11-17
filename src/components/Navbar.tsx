@@ -1,4 +1,5 @@
 import React from "react";
+import { PanelLeft } from "lucide-react";
 import { FourPointStar } from "./GeometricDecor";
 import type { AppView, WorkspaceTab } from "../types/pdf";
 
@@ -6,7 +7,10 @@ interface NavbarProps {
   currentView: AppView;
   hasDocument: boolean;
   isSignedIn: boolean;
+  isDesktopSidebarOpen: boolean;
   activityCount: number;
+  onToggleDesktopSidebar: () => void;
+  onOpenMobileSidebar: () => void;
   onNavigateView: (view: AppView) => void;
   onSelectTab: (tab: WorkspaceTab) => void;
   onSignOut: () => void;
@@ -16,7 +20,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   currentView,
   hasDocument,
   isSignedIn,
+  isDesktopSidebarOpen,
   activityCount,
+  onToggleDesktopSidebar,
+  onOpenMobileSidebar,
   onNavigateView,
   onSelectTab,
   onSignOut,
@@ -37,17 +44,41 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-[#FFF1D8]/95 backdrop-blur-sm border-b-2 border-[#17213B]">
+    <header className="sticky top-0 z-20 bg-[#FFF1D8]/95 backdrop-blur-sm border-b-2 border-[#17213B]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-8">
-        {/* Zone 1: Brand Wordmark */}
-        <a
-          href="#upload-section"
-          onClick={(e) => handleWorkspaceLink(e, "upload-section")}
-          className="inline-flex items-center gap-2.5 font-display text-xl font-bold tracking-tight text-[#17213B] whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#2855D9]"
-        >
-          <FourPointStar className="w-6 h-6 shrink-0" fill="#F47A35" stroke="#17213B" />
-          <span>PDF GENIUS</span>
-        </a>
+        {/* Zone 1: Sidebar Toggle + Brand Wordmark */}
+        <div className="flex items-center gap-3 shrink-0">
+          {/* Mobile Drawer Trigger */}
+          <button
+            type="button"
+            onClick={onOpenMobileSidebar}
+            aria-label="Open past chats sidebar"
+            className="lg:hidden p-2 rounded-xl border-2 border-[#17213B] bg-[#FFFFFF] hover:bg-[#FFE0C5] transition-colors cursor-pointer"
+          >
+            <PanelLeft className="w-4 h-4 text-[#17213B]" />
+          </button>
+
+          {/* Desktop Re-open Trigger when collapsed */}
+          {!isDesktopSidebarOpen && (
+            <button
+              type="button"
+              onClick={onToggleDesktopSidebar}
+              aria-label="Open past chats sidebar"
+              className="hidden lg:inline-flex p-2 rounded-xl border-2 border-[#17213B] bg-[#FFFFFF] hover:bg-[#FFE0C5] transition-colors cursor-pointer"
+            >
+              <PanelLeft className="w-4 h-4 text-[#17213B]" />
+            </button>
+          )}
+
+          <a
+            href="#upload-section"
+            onClick={(e) => handleWorkspaceLink(e, "upload-section")}
+            className="inline-flex items-center gap-2.5 font-display text-xl font-bold tracking-tight text-[#17213B] whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#2855D9]"
+          >
+            <FourPointStar className="w-6 h-6 shrink-0" fill="#F47A35" stroke="#17213B" />
+            <span>PDF GENIUS</span>
+          </a>
+        </div>
 
         {/* Zone 2: 4 Clean Single-line Navigation Links */}
         <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-[#17213B]">

@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
 import { UploadCloud, FileText, AlertCircle, Sparkles, ArrowRight, Loader2 } from "lucide-react";
 import { EightPointStar, FourPointStar } from "./GeometricDecor";
+import heroEditorialImg from "../assets/images/hero_pdf_editorial_1794926501852.jpg";
 import type { ExtractionProgress } from "../types/pdf";
 
 interface HeroUploadProps {
@@ -212,7 +213,7 @@ export const HeroUpload: React.FC<HeroUploadProps> = ({
             <div className="relative flex-1 rounded-2xl border-2 border-[#17213B] overflow-hidden bg-[#FFF1D8] min-h-[260px]">
               {!imgError ? (
                 <img
-                  src="/src/assets/images/hero_pdf_editorial_1794926501852.jpg"
+                  src={heroEditorialImg}
                   alt="Editorial illustration showing PDF pages transforming into organized summary cards"
                   referrerPolicy="no-referrer"
                   onError={() => setImgError(true)}

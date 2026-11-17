@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { CheckCircle2, XCircle, RotateCcw, Sparkles, Loader2, AlertCircle } from "lucide-react";
+import quizGraphicImg from "../assets/images/quiz_trophy_graphic_1794926504524.jpg";
 import type { QuizQuestion } from "../types/pdf";
 
 interface QuizViewProps {
@@ -80,7 +81,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
           <div className="w-20 h-20 rounded-2xl border-2 border-[#17213B] bg-[#FFF1D8] overflow-hidden shrink-0">
             {!imgError ? (
               <img
-                src="/src/assets/images/quiz_trophy_graphic_1794926504524.jpg"
+                src={quizGraphicImg}
                 alt="Editorial lightbulb and quiz checkmark illustration"
                 referrerPolicy="no-referrer"
                 onError={() => setImgError(true)}

@@ -20,6 +20,10 @@ function mapFirebaseAuthError(code: string): string {
   switch (code) {
     case "auth/operation-not-allowed":
       return "Email/Password sign-in is not enabled in your Firebase Console yet. Click 'Continue with Google' above for instant access, or enable Email/Password under Firebase Console > Authentication > Sign-in method.";
+    case "auth/unauthorized-domain": {
+      const host = typeof window !== "undefined" ? window.location.hostname : "this domain";
+      return `Sign-in is not authorized for "${host}". Add "${host}" under Firebase Console > Authentication > Settings > Authorized domains.`;
+    }
     case "auth/invalid-credential":
     case "auth/wrong-password":
     case "auth/user-not-found":

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { ArrowRight, BookOpen, MessageSquare, HelpCircle, BookMarked, FileText } from "lucide-react";
+import featureStudyImg from "../assets/images/feature_study_notes_1794926503104.jpg";
 
 interface LandingShowcaseProps {
   onLoadSample: () => void;
@@ -107,7 +108,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
           <div className="rounded-2xl border-2 border-[#17213B] overflow-hidden bg-[#FFF1D8] aspect-[4/3]">
             {!imgError ? (
               <img
-                src="/src/assets/images/feature_study_notes_1794926503104.jpg"
+                src={featureStudyImg}
                 alt="Editorial illustration of an open study notebook, speech bubbles, and concept cards"
                 referrerPolicy="no-referrer"
                 onError={() => setImgError(true)}
