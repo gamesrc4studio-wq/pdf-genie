@@ -1,0 +1,8 @@
+{
+  "name": "PDF GENIUS – AI PDF Summarizer",
+  "description": "Upload any PDF to generate clear summaries, extract key points, learn important terms, ask questions, and test your knowledge with AI-powered quizzes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

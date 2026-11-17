@@ -1,0 +1,191 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [4 0 R 6 0 R 8 0 R] /Count 3 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >>
+endobj
+5 0 obj
+<< /Length 1556 >>
+stream
+BT
+/F1 15 Tf
+54 745 Td
+(How Modern AI Language Models Learn and Reason) Tj
+/F1 11 Tf
+0 -28 Td
+16 TL
+(University Study Primer - Applied Machine Learning Series) Tj
+T*
+() Tj
+T*
+(1. From Raw Text to Tokens) Tj
+T*
+(Large Language Models \(LLMs\) do not read words the way humans do. Instead, they) Tj
+T*
+(break text into smaller units called tokens. A token can be a whole short word,) Tj
+T*
+(a piece of a longer word, or even punctuation. On average, 100 tokens equals) Tj
+T*
+(about 75 English words. Tokenization lets a model handle rare words, code, and) Tj
+T*
+(multiple languages using a fixed vocabulary of around 50,000 to 100,000 subwords.) Tj
+T*
+() Tj
+T*
+(2. Embeddings: Turning Words Into Coordinates) Tj
+T*
+(Once text is split into tokens, each token is converted into a vector of numbers) Tj
+T*
+(called an embedding. Words with similar meanings or contexts sit closer together) Tj
+T*
+(in this high-dimensional space. For example, the vectors for university and) Tj
+T*
+(college point in nearly the same direction, allowing mathematical comparison.) Tj
+T*
+() Tj
+T*
+(3. The Transformer Architecture and Self-Attention) Tj
+T*
+(Introduced in 2017, the Transformer replaced slow sequential processing with) Tj
+T*
+(parallel computation. Its core mechanism is self-attention, which scores how) Tj
+T*
+(strongly every token in a sentence relates to every other token. In the sentence) Tj
+T*
+(The battery died because it was old, self-attention links the pronoun it back) Tj
+T*
+(to battery rather than died, preserving long-range context accurately.) Tj
+T*
+ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 7 0 R >>
+endobj
+7 0 obj
+<< /Length 1473 >>
+stream
+BT
+/F1 15 Tf
+54 745 Td
+(Page 2: Training Stages and Model Alignment) Tj
+/F1 11 Tf
+0 -28 Td
+16 TL
+(4. Pre-Training: Next-Token Prediction at Scale) Tj
+T*
+(During pre-training, the model reads billions of pages of books, articles, and) Tj
+T*
+(open codebases. Its objective is remarkably simple: predict the next token) Tj
+T*
+(given all preceding tokens. By practicing this trillions of times, the model) Tj
+T*
+(internalizes grammar, world facts, reasoning patterns, and cause-and-effect.) Tj
+T*
+() Tj
+T*
+(5. Fine-Tuning and Instruction Following) Tj
+T*
+(A raw pre-trained model only predicts text continuations; it does not naturally) Tj
+T*
+(act as a helpful study partner. Supervised Fine-Tuning \(SFT\) teaches the model) Tj
+T*
+(using curated question-and-answer examples written by human experts. Afterward,) Tj
+T*
+(Reinforcement Learning from Human Feedback \(RLHF\) scores multiple answers so) Tj
+T*
+(the model prefers accurate, concise, and safe responses over rambling guesses.) Tj
+T*
+() Tj
+T*
+(6. Context Windows and Memory Limits) Tj
+T*
+(The context window is the maximum number of tokens a model can inspect in a) Tj
+T*
+(single request, including both your prompt and its reply. Modern models handle) Tj
+T*
+(hundreds of thousands of tokens, enough for full research papers. However, very) Tj
+T*
+(long inputs increase latency and cost, so chunking documents into focused) Tj
+T*
+(sections remains an essential engineering practice for fast, reliable tools.) Tj
+T*
+ET
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 9 0 R >>
+endobj
+9 0 obj
+<< /Length 1309 >>
+stream
+BT
+/F1 15 Tf
+54 745 Td
+(Page 3: Hallucinations, Grounding, and Practical Use) Tj
+/F1 11 Tf
+0 -28 Td
+16 TL
+(7. Understanding Hallucinations) Tj
+T*
+(Because language models predict probable next tokens rather than looking up) Tj
+T*
+(verified facts in a database, they can occasionally produce confident-sounding) Tj
+T*
+(errors known as hallucinations. Hallucinations are most common when asking for) Tj
+T*
+(obscure citations, exact private figures, or facts absent from the prompt.) Tj
+T*
+() Tj
+T*
+(8. Grounding Answers in Source Documents) Tj
+T*
+(Retrieval-Augmented Generation \(RAG\) and document grounding solve this issue) Tj
+T*
+(by supplying exact excerpts from a trusted PDF inside the model prompt and) Tj
+T*
+(instructing the model to answer strictly from that evidence. When a detail is) Tj
+T*
+(missing from the source text, a well-designed system explicitly informs the) Tj
+T*
+(user instead of guessing.) Tj
+T*
+() Tj
+T*
+(9. Key Takeaways for Students and Researchers) Tj
+T*
+(First, treat AI summaries as rapid study maps, not replacements for primary) Tj
+T*
+(verification. Second, break dense textbooks into manageable chunks when asking) Tj
+T*
+(questions. Third, test comprehension actively using self-quizzes and flashcards) Tj
+T*
+(rather than passively re-reading highlighted paragraphs.) Tj
+T*
+ET
+endstream
+endobj
+xref
+0 10
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000127 00000 n 
+0000000197 00000 n 
+0000000323 00000 n 
+0000001930 00000 n 
+0000002056 00000 n 
+0000003580 00000 n 
+0000003706 00000 n 
+trailer
+<< /Size 10 /Root 1 0 R >>
+startxref
+5066
+%%EOF
