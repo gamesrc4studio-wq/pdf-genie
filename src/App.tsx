@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { onAuthStateChanged, sendEmailVerification, signOut, type User } from "firebase/auth";
+import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 import {
   FileText,
   BookOpen,
@@ -9,7 +9,6 @@ import {
   BookMarked,
   X,
   CheckCircle2,
-  MailCheck,
   LogIn,
 } from "lucide-react";
 import { auth } from "./lib/firebase";
@@ -369,23 +368,6 @@ export default function App() {
     setCurrentView("studio");
   }, []);
 
-  const handleRefreshVerification = async () => {
-    if (!user) return;
-    await user.reload();
-    setEmailVerifiedTick((t) => t + 1);
-  };
-
-  const handleResendVerification = async () => {
-    if (!user) return;
-    try {
-      await sendEmailVerification(user);
-      setCloudNotice("Verification email sent! Please check your inbox.");
-      setTimeout(() => setCloudNotice(null), 4000);
-    } catch {
-      setError("Please wait a minute before requesting another verification email.");
-    }
-  };
-
   const TABS: { id: WorkspaceTab; label: string; icon: typeof BookOpen }[] = [
     { id: "summary", label: "Summary & Points", icon: BookOpen },
     { id: "chat", label: "Ask Your PDF", icon: MessageSquare },
@@ -407,6 +389,7 @@ export default function App() {
         isSignedIn={isSignedIn}
         userDisplayName={userDisplayName}
         userEmail={user?.email || ""}
+        userPhotoUrl={user?.photoURL || null}
         activities={activities}
         activeDoc={doc}
         onNewChat={handleResetDocument}
@@ -425,6 +408,7 @@ export default function App() {
         isSignedIn={isSignedIn}
         userDisplayName={userDisplayName}
         userEmail={user?.email || ""}
+        userPhotoUrl={user?.photoURL || null}
         activities={activities}
         activeDoc={doc}
         onNewChat={handleResetDocument}
@@ -443,42 +427,14 @@ export default function App() {
           isSignedIn={isSignedIn}
           isDesktopSidebarOpen={isDesktopSidebarOpen}
           activityCount={activities.length}
+          userDisplayName={userDisplayName}
+          userEmail={user?.email || ""}
+          userPhotoUrl={user?.photoURL || null}
           onToggleDesktopSidebar={() => setIsDesktopSidebarOpen((prev) => !prev)}
           onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
           onNavigateView={setCurrentView}
           onSelectTab={handleSelectTab}
-          onSignOut={handleSignOut}
         />
-
-        {/* Email Verification Banner */}
-        {isSignedIn && user && !user.emailVerified && (
-          <div className="bg-[#FFE0C5] border-b-2 border-[#17213B]">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-3 text-sm">
-              <div className="flex items-center gap-2.5 font-medium text-[#17213B]">
-                <MailCheck className="w-4 h-4 text-[#2855D9] shrink-0" />
-                <span>
-                  Please verify <span className="font-bold">{user.email}</span> to save your activity to the cloud.
-                </span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <button
-                  type="button"
-                  onClick={handleResendVerification}
-                  className="px-3 py-1 rounded-lg bg-[#FFFFFF] border-2 border-[#17213B] text-xs font-bold cursor-pointer"
-                >
-                  Resend Email
-                </button>
-                <button
-                  type="button"
-                  onClick={handleRefreshVerification}
-                  className="px-3 py-1 rounded-lg bg-[#2855D9] text-white border-2 border-[#17213B] text-xs font-bold cursor-pointer"
-                >
-                  I Verified
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Cloud Sync Toast */}
         {cloudNotice && (
@@ -494,6 +450,7 @@ export default function App() {
           {currentView === "auth" ? (
             <AuthView
               onSuccess={() => setCurrentView("studio")}
+              onSignupVerified={() => setEmailVerifiedTick((t) => t + 1)}
               onBack={() => setCurrentView("studio")}
             />
           ) : currentView === "activity" && isSignedIn ? (

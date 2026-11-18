@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Plus,
   MessageSquare,
@@ -22,6 +22,7 @@ export interface ActivitySidebarProps {
   isSignedIn: boolean;
   userDisplayName: string;
   userEmail: string;
+  userPhotoUrl?: string | null;
   activities: SavedActivity[];
   activeDoc: DocumentAnalysis | null;
   onNewChat: () => void;
@@ -64,6 +65,7 @@ const SidebarBody: React.FC<SidebarBodyProps> = ({
   isSignedIn,
   userDisplayName,
   userEmail,
+  userPhotoUrl,
   activities,
   activeDoc,
   onNewChat,
@@ -76,6 +78,11 @@ const SidebarBody: React.FC<SidebarBodyProps> = ({
   const [search, setSearch] = useState("");
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [avatarError, setAvatarError] = useState(false);
+
+  useEffect(() => {
+    setAvatarError(false);
+  }, [userPhotoUrl]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -367,34 +374,41 @@ const SidebarBody: React.FC<SidebarBodyProps> = ({
               <span className="tabular-nums text-[#2855D9]">{activities.length}</span>
             </button>
 
-            <div className="flex items-center justify-between gap-2 px-1 pt-1">
-              <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex items-center gap-2.5 px-1 pt-1">
+              {userPhotoUrl && !avatarError ? (
+                <img
+                  src={userPhotoUrl}
+                  alt={userDisplayName}
+                  referrerPolicy="no-referrer"
+                  onError={() => setAvatarError(true)}
+                  className="w-8 h-8 rounded-full border-2 border-[#17213B] object-cover shrink-0"
+                />
+              ) : (
                 <div className="w-8 h-8 rounded-full bg-[#F47A35] border-2 border-[#17213B] flex items-center justify-center font-display text-xs font-bold text-[#17213B] shrink-0">
                   {getInitials(userDisplayName)}
                 </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-[#17213B] truncate">
-                    {userDisplayName}
-                  </p>
-                  <p className="text-[11px] text-[#17213B]/70 truncate">
-                    {userEmail}
-                  </p>
-                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-[#17213B] truncate">
+                  {userDisplayName}
+                </p>
+                <p className="text-[11px] text-[#17213B]/70 truncate">
+                  {userEmail}
+                </p>
               </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  onSignOut();
-                  onCloseMobile();
-                }}
-                title="Sign Out"
-                aria-label="Sign Out"
-                className="p-1.5 rounded-lg hover:bg-[#FFE0C5] border border-transparent hover:border-[#17213B] text-[#17213B] shrink-0 cursor-pointer"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
             </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                onSignOut();
+                onCloseMobile();
+              }}
+              className="editorial-btn w-full bg-[#FFFFFF] hover:bg-[#F47A35] text-[#17213B] px-3 py-2 rounded-xl text-xs font-bold inline-flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              Sign Out
+            </button>
           </>
         ) : (
           <button

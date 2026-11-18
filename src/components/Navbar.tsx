@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { PanelLeft } from "lucide-react";
 import { FourPointStar } from "./GeometricDecor";
 import type { AppView, WorkspaceTab } from "../types/pdf";
@@ -9,11 +9,21 @@ interface NavbarProps {
   isSignedIn: boolean;
   isDesktopSidebarOpen: boolean;
   activityCount: number;
+  userDisplayName: string;
+  userEmail: string;
+  userPhotoUrl: string | null;
   onToggleDesktopSidebar: () => void;
   onOpenMobileSidebar: () => void;
   onNavigateView: (view: AppView) => void;
   onSelectTab: (tab: WorkspaceTab) => void;
-  onSignOut: () => void;
+}
+
+function getInitials(name: string, email: string): string {
+  const source = name.trim() || email.trim();
+  if (!source) return "U";
+  const parts = source.split(/[\s@]+/).filter(Boolean);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -22,12 +32,20 @@ export const Navbar: React.FC<NavbarProps> = ({
   isSignedIn,
   isDesktopSidebarOpen,
   activityCount,
+  userDisplayName,
+  userEmail,
+  userPhotoUrl,
   onToggleDesktopSidebar,
   onOpenMobileSidebar,
   onNavigateView,
   onSelectTab,
-  onSignOut,
 }) => {
+  const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [userPhotoUrl]);
+
   const handleWorkspaceLink = (
     e: React.MouseEvent<HTMLAnchorElement>,
     targetId: string,
@@ -48,7 +66,6 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-8">
         {/* Zone 1: Sidebar Toggle + Brand Wordmark */}
         <div className="flex items-center gap-3 shrink-0">
-          {/* Mobile Drawer Trigger */}
           <button
             type="button"
             onClick={onOpenMobileSidebar}
@@ -58,7 +75,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             <PanelLeft className="w-4 h-4 text-[#17213B]" />
           </button>
 
-          {/* Desktop Re-open Trigger when collapsed */}
           {!isDesktopSidebarOpen && (
             <button
               type="button"
@@ -119,15 +135,31 @@ export const Navbar: React.FC<NavbarProps> = ({
           </a>
         </nav>
 
-        {/* Zone 3: 1 Primary Action Button */}
+        {/* Zone 3: User Avatar/Email when signed in, or Log In / Sign Up */}
         <div className="shrink-0">
           {isSignedIn ? (
             <button
               type="button"
-              onClick={onSignOut}
-              className="editorial-btn bg-[#FFFFFF] text-[#17213B] px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap shrink-0 cursor-pointer"
+              onClick={() => onNavigateView("activity")}
+              title={userEmail || userDisplayName}
+              className="editorial-btn bg-[#FFFFFF] hover:bg-[#FFE0C5] text-[#17213B] pl-1.5 pr-3 py-1 rounded-full text-xs sm:text-sm font-semibold inline-flex items-center gap-2.5 whitespace-nowrap shrink-0 cursor-pointer"
             >
-              Sign Out
+              {userPhotoUrl && !imgError ? (
+                <img
+                  src={userPhotoUrl}
+                  alt={userDisplayName}
+                  referrerPolicy="no-referrer"
+                  onError={() => setImgError(true)}
+                  className="w-7 h-7 rounded-full border-2 border-[#17213B] object-cover shrink-0"
+                />
+              ) : (
+                <span className="w-7 h-7 rounded-full bg-[#F47A35] border-2 border-[#17213B] flex items-center justify-center font-display text-[11px] font-bold text-[#17213B] shrink-0">
+                  {getInitials(userDisplayName, userEmail)}
+                </span>
+              )}
+              <span className="max-w-[170px] truncate hidden sm:inline">
+                {userEmail || userDisplayName}
+              </span>
             </button>
           ) : (
             <button
