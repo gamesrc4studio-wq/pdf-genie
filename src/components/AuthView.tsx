@@ -24,8 +24,11 @@ interface AuthViewProps {
   initialMode?: "login" | "signup" | "reset";
   onSuccess: () => void;
   onSignupVerified?: () => void;
+  onSignupPendingChange?: (pending: boolean) => void;
   onBack: () => void;
 }
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function mapFirebaseAuthError(code: string): string {
   switch (code) {
@@ -60,13 +63,17 @@ export const AuthView: React.FC<AuthViewProps> = ({
   initialMode = "login",
   onSuccess,
   onSignupVerified,
+  onSignupPendingChange,
   onBack,
 }) => {
   const [mode, setMode] = useState<"login" | "signup" | "reset">(initialMode);
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(null);
+  const [pendingSignup, setPendingSignup] = useState<{
+    email: string;
+    password: string;
+  } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
@@ -76,6 +83,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
     setInfoMessage(null);
     setIsLoading(true);
     try {
+      onSignupPendingChange?.(false);
       await signInWithPopup(auth, googleProvider);
       onSuccess();
     } catch (err) {
@@ -86,28 +94,36 @@ export const AuthView: React.FC<AuthViewProps> = ({
     }
   };
 
-  const handleVerifySignupComplete = async () => {
+  const handleVerifyThenLogin = async () => {
     setError(null);
     setInfoMessage(null);
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-      setPendingVerificationEmail(null);
-      return;
-    }
+    if (!pendingSignup) return;
 
     setIsLoading(true);
+    onSignupPendingChange?.(true);
     try {
-      await currentUser.reload();
+      const cred = await signInWithEmailAndPassword(
+        auth,
+        pendingSignup.email,
+        pendingSignup.password
+      );
+      await cred.user.reload();
+
       if (auth.currentUser?.emailVerified) {
+        onSignupPendingChange?.(false);
+        setPendingSignup(null);
         onSignupVerified?.();
         onSuccess();
       } else {
+        await signOut(auth);
         setError(
-          "Your email is not verified yet. Please click the verification link sent to your inbox, then try again."
+          "Your email is not verified yet. Please click the verification link sent to your inbox first, then try logging in again."
         );
       }
-    } catch {
-      setError("Could not check verification status right now. Please try again.");
+    } catch (err) {
+      await signOut(auth).catch(() => {});
+      const code = (err as { code?: string }).code || "";
+      setError(code ? mapFirebaseAuthError(code) : "Could not check verification status right now.");
     } finally {
       setIsLoading(false);
     }
@@ -116,32 +132,71 @@ export const AuthView: React.FC<AuthViewProps> = ({
   const handleResendSignupEmail = async () => {
     setError(null);
     setInfoMessage(null);
-    const currentUser = auth.currentUser;
-    if (!currentUser) return;
+    if (!pendingSignup) return;
+
     setIsLoading(true);
+    onSignupPendingChange?.(true);
     try {
-      await sendEmailVerification(currentUser);
-      setInfoMessage(`Verification link re-sent to ${pendingVerificationEmail}.`);
+      const cred = await signInWithEmailAndPassword(
+        auth,
+        pendingSignup.email,
+        pendingSignup.password
+      );
+      await cred.user.reload();
+
+      if (auth.currentUser?.emailVerified) {
+        onSignupPendingChange?.(false);
+        setPendingSignup(null);
+        onSignupVerified?.();
+        onSuccess();
+        return;
+      }
+
+      await sendEmailVerification(cred.user);
+      await signOut(auth);
+      setInfoMessage(`Verification link re-sent to ${pendingSignup.email}.`);
     } catch {
+      await signOut(auth).catch(() => {});
       setError("Please wait a moment before requesting another verification email.");
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleGoToLoginAfterSignup = async () => {
+    setError(null);
+    setInfoMessage("Once you click the verification link in your email, log in below.");
+    const savedEmail = pendingSignup?.email || email;
+    setPendingSignup(null);
+    setPassword("");
+    setEmail(savedEmail);
+    setMode("login");
+    onSignupPendingChange?.(false);
+    try {
+      if (auth.currentUser) {
+        await signOut(auth);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
   const handleCancelPendingSignup = async () => {
     setError(null);
     setInfoMessage(null);
-    setPendingVerificationEmail(null);
+    setPendingSignup(null);
+    onSignupPendingChange?.(false);
     try {
-      await signOut(auth);
+      if (auth.currentUser) {
+        await signOut(auth);
+      }
     } catch {
       // ignore
     }
   };
 
   const handleBackToStudio = async () => {
-    if (pendingVerificationEmail) {
+    if (pendingSignup) {
       await handleCancelPendingSignup();
     }
     onBack();
@@ -156,8 +211,8 @@ export const AuthView: React.FC<AuthViewProps> = ({
     const trimmedName = displayName.trim();
 
     if (mode === "reset") {
-      if (!trimmedEmail) {
-        setError("Please enter the email address associated with your account.");
+      if (!trimmedEmail || !EMAIL_REGEX.test(trimmedEmail)) {
+        setError("Please enter a valid email address associated with your account.");
         return;
       }
       setIsLoading(true);
@@ -179,12 +234,16 @@ export const AuthView: React.FC<AuthViewProps> = ({
       return;
     }
 
-    if (!trimmedEmail || !password) {
-      setError("Please enter both your email and password.");
+    if (mode === "signup" && trimmedName.length < 2) {
+      setError("Please enter your full name (at least 2 characters).");
       return;
     }
-    if (mode === "signup" && trimmedName.length < 2) {
-      setError("Please enter your name (at least 2 characters).");
+    if (!trimmedEmail || !EMAIL_REGEX.test(trimmedEmail)) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+    if (!password) {
+      setError("Please enter your password.");
       return;
     }
     if (password.length < 6) {
@@ -195,16 +254,21 @@ export const AuthView: React.FC<AuthViewProps> = ({
     setIsLoading(true);
     try {
       if (mode === "signup") {
+        // Prevent header/sidebar from showing the user as signed in before email verification
+        onSignupPendingChange?.(true);
         const cred = await createUserWithEmailAndPassword(auth, trimmedEmail, password);
         await updateProfile(cred.user, { displayName: trimmedName });
         await sendEmailVerification(cred.user);
-        setPendingVerificationEmail(trimmedEmail);
+        // Sign out immediately so user verifies email FIRST, then logs in
+        await signOut(auth);
+        setPendingSignup({ email: trimmedEmail, password });
       } else {
-        // Log in directly without requiring an email verification screen
+        onSignupPendingChange?.(false);
         await signInWithEmailAndPassword(auth, trimmedEmail, password);
         onSuccess();
       }
     } catch (err) {
+      onSignupPendingChange?.(false);
       const code = (err as { code?: string }).code || "";
       setError(mapFirebaseAuthError(code));
     } finally {
@@ -250,7 +314,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
 
         {/* Right Auth Card */}
         <div className="lg:col-span-7 editorial-card bg-[#FFFFFF] rounded-3xl p-7 sm:p-9">
-          {pendingVerificationEmail ? (
+          {pendingSignup ? (
             <div className="space-y-5 py-2">
               <div className="w-12 h-12 rounded-2xl bg-[#FFE0C5] border-2 border-[#17213B] flex items-center justify-center">
                 <MailCheck className="w-6 h-6 text-[#2855D9]" />
@@ -258,12 +322,12 @@ export const AuthView: React.FC<AuthViewProps> = ({
 
               <div>
                 <h2 className="font-display text-2xl font-bold text-[#17213B]">
-                  Verify your email to finish Sign Up
+                  First verify your email, then log in
                 </h2>
                 <p className="text-sm sm:text-base text-[#17213B]/80 mt-2 leading-relaxed">
                   We sent a verification link to{" "}
-                  <span className="font-bold text-[#17213B]">{pendingVerificationEmail}</span>.
-                  Open that email and click the verification link, then click below to enter PDF GENIUS.
+                  <span className="font-bold text-[#17213B]">{pendingSignup.email}</span>.
+                  Open that email and click the link first, then click below to log in to PDF GENIUS.
                 </p>
               </div>
 
@@ -287,17 +351,17 @@ export const AuthView: React.FC<AuthViewProps> = ({
               <div className="space-y-3 pt-1">
                 <button
                   type="button"
-                  onClick={handleVerifySignupComplete}
+                  onClick={handleVerifyThenLogin}
                   disabled={isLoading}
                   className="editorial-btn w-full bg-[#F47A35] text-[#17213B] px-5 py-3 rounded-xl text-base font-bold inline-flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
                 >
                   {isLoading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      Checking verification...
+                      Verifying &amp; logging in...
                     </>
                   ) : (
-                    "I've Verified — Complete Sign Up"
+                    "I've Verified — Log In"
                   )}
                 </button>
 
@@ -310,14 +374,24 @@ export const AuthView: React.FC<AuthViewProps> = ({
                   >
                     Resend Verification Email
                   </button>
-                  <button
-                    type="button"
-                    onClick={handleCancelPendingSignup}
-                    disabled={isLoading}
-                    className="text-sm font-semibold text-[#17213B]/75 hover:underline cursor-pointer"
-                  >
-                    Use a different email
-                  </button>
+                  <div className="flex items-center gap-4">
+                    <button
+                      type="button"
+                      onClick={handleGoToLoginAfterSignup}
+                      disabled={isLoading}
+                      className="text-sm font-bold text-[#17213B] hover:underline cursor-pointer"
+                    >
+                      Go to Log In
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCancelPendingSignup}
+                      disabled={isLoading}
+                      className="text-sm font-semibold text-[#17213B]/75 hover:underline cursor-pointer"
+                    >
+                      Use a different email
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -416,6 +490,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
 
               {/* Email / Password Form */}
               <form
+                noValidate
                 onSubmit={handleEmailSubmit}
                 className={`space-y-4 ${mode === "reset" ? "mt-6" : ""}`}
               >
@@ -525,7 +600,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
                   ) : mode === "login" ? (
                     "Log In to PDF GENIUS"
                   ) : mode === "signup" ? (
-                    "Create Account"
+                    "Verify Email & Sign Up"
                   ) : (
                     "Send Password Reset Email"
                   )}

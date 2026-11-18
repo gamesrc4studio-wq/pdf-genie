@@ -48,6 +48,7 @@ import type {
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
+  const [isSignupPendingVerification, setIsSignupPendingVerification] = useState(false);
   const [emailVerifiedTick, setEmailVerifiedTick] = useState(0);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [activities, setActivities] = useState<SavedActivity[]>([]);
@@ -375,7 +376,7 @@ export default function App() {
     { id: "terms", label: "Important Terms", icon: BookMarked },
   ];
 
-  const isSignedIn = user !== null;
+  const isSignedIn = user !== null && !isSignupPendingVerification;
   const userDisplayName =
     userProfile?.displayName || user?.displayName || user?.email?.split("@")[0] || "Student";
 
@@ -432,7 +433,10 @@ export default function App() {
           userPhotoUrl={user?.photoURL || null}
           onToggleDesktopSidebar={() => setIsDesktopSidebarOpen((prev) => !prev)}
           onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
-          onNavigateView={setCurrentView}
+          onNavigateView={(view) => {
+            if (view !== "auth") setIsSignupPendingVerification(false);
+            setCurrentView(view);
+          }}
           onSelectTab={handleSelectTab}
         />
 
@@ -449,9 +453,16 @@ export default function App() {
         <main className="flex-1">
           {currentView === "auth" ? (
             <AuthView
-              onSuccess={() => setCurrentView("studio")}
+              onSuccess={() => {
+                setIsSignupPendingVerification(false);
+                setCurrentView("studio");
+              }}
               onSignupVerified={() => setEmailVerifiedTick((t) => t + 1)}
-              onBack={() => setCurrentView("studio")}
+              onSignupPendingChange={setIsSignupPendingVerification}
+              onBack={() => {
+                setIsSignupPendingVerification(false);
+                setCurrentView("studio");
+              }}
             />
           ) : currentView === "activity" && isSignedIn ? (
             <ActivityHistoryView
